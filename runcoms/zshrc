@@ -1,13 +1,127 @@
-#
-# Executes commands at the start of an interactive session.
-#
 # Authors:
 #   Sorin Ionescu <sorin.ionescu@gmail.com>
-#
+#   Kevin Wendt <wendtek@gmail.com>
 
 # Source Prezto.
 if [[ -s "${ZDOTDIR:-$HOME}/.zprezto/init.zsh" ]]; then
   source "${ZDOTDIR:-$HOME}/.zprezto/init.zsh"
 fi
 
-# Customize to your needs...
+# Hide user@computer in prompt
+DEFAULT_USER=kwendt
+prompt_context() {}
+
+# Needed for completion
+autoload -U +X compinit && compinit
+autoload -U +X bashcompinit && bashcompinit
+
+# Completion scripts
+source /usr/local/etc/profile.d/z.sh
+source ~/personal/.iterm2_shell_integration.zsh
+source <(/usr/local/bin/kubectl completion zsh)
+#source <(KUBECONFIG="$HOME/.kube/config/dev-kubeconfig.yml" /usr/local/bin/helm completion zsh)
+#source <(/usr/local/bin/kubecfg completion)  # uses cobra zsh completion which is apparently borked
+
+complete -o nospace -C /usr/local/Cellar/tfenv/1.0.2/versions/0.12.13/terraform terraform
+_get_aws_accounts() {
+  COMPREPLY=($(jq -r 'keys | .[]' ~/.aws/accounts))
+}
+complete -F _get_aws_accounts awsrefresh
+
+
+# Path setup
+export PATH=~/go/bin:~/personal/bin:/usr/local/opt/ruby/bin:~/.krew/bin:$PATH
+export fpath=(~/.zsh/completion-functions $fpath)
+
+# History setup
+export HISTFILE=~/.zhistory
+# setopt INC_APPEND_HISTORY
+# setopt HIST_IGNORE_ALL_DUPS
+
+export VISUAL=vim
+export EDITOR="$VISUAL"
+export AWS_PROFILE_ASSUME_ROLE="iam"
+
+# Aliases and custom functions
+alias reload='source ~/.zshrc'
+
+#alias gimme-aws-creds="docker run -it --rm \
+#  -v ~/.aws/credentials:/root/.aws/credentials \
+#  -v ~/.okta_aws_login_config:/root/.okta_aws_login_config \
+#  gimme-aws-creds"
+alias awswhoami='aws sts get-caller-identity --output table; aws iam list-account-aliases --output table'
+alias awswendtek='export AWS_PROFILE=wendtek; echo AWS_PROFILE=$AWS_PROFILE'
+alias env-iam="export AWS_PROFILE=\"iam-admin\""
+alias env-staging="source ~/personal/bin/env-staging.sh"
+alias env-development="source ~/personal/bin/env-development.sh"
+alias env-production="source ~/personal/bin/env-production.sh"
+alias dailyaws='source ~/personal/bin/dailyaws.sh'
+
+alias gitroot='git rev-parse --show-toplevel'
+alias chess='gnuchess -g'
+alias jupyter-build='docker build ~/code/misc/jupyter -t wendtek-jupyter:latest'
+alias jupyter-run='docker run -p 8888:8888 -v ~/:/home/jovyan/work wendtek-jupyter:latest'
+
+alias gpo='git push origin $(git rev-parse --abbrev-ref HEAD)'
+alias opsi='eval $(op signin clearcover)'
+alias k='kubectl'
+alias tfws='terraform workspace'
+alias ecr-login='aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 330218730270.dkr.ecr.us-east-1.amazonaws.com'
+
+alias bd='b64d'
+b64d() {
+  echo "$1" | base64 -D
+}
+
+alias be='b64e'
+b64e() {
+  echo "$1" | base64
+}
+
+gh-setup() {
+  git config --global user.name "wendtek"
+  git config --global user.email "wendtek@gmail.com"
+}
+
+gh() {
+  open `git remote -v | grep fetch | awk '{print $2}' | sed 's/git@/https:\/\//' | sed 's/com:/com\//' | head -n1`
+}
+
+ppgrep() {
+  pgrep "$@" | xargs --no-run-if-empty ps fp;
+}
+
+docker-bash() {
+  docker exec -it $1 /bin/bash
+}
+
+flip() {
+    echo;
+    echo -en "( º_º）          ┬─┬   \r"; sleep .1;
+    echo -en " ( º_º）         ┬─┬   \r"; sleep .1;
+    echo -en "  ( º_º）        ┬─┬   \r"; sleep .1;
+    echo -en "   ( º_º）       ┬─┬   \r"; sleep .1;
+    echo -en "    ( º_º）      ┬─┬   \r"; sleep .1;
+    echo -en "     ( º_º）     ┬─┬   \r"; sleep .1;
+    echo -en "      ( º_º）    ┬─┬   \r"; sleep .1;
+    echo -en "       ( º_º）   ┬─┬   \r"; sleep .1;
+    echo -en "        ( º_º）  ┬─┬   \r"; sleep .1;
+    echo -en "         ( º_º） ┬─┬   \r"; sleep .1;
+    echo -en "          ( ºДº）┬─┬   \r"; sleep .25;
+    echo -en "          (╯'Д'）╯︵⊏   \r"; sleep .25;
+    echo -en "          (╯'□'）╯︵ ⊏  \r"; sleep .25;
+    echo     "          (╯°□°）╯︵ ┻━┻"; sleep .25;
+}
+
+title() {
+  echo -en "\033]0;$1\a";
+}
+
+makeplan() {
+ plancommand="terraform plan -out tfplan -var git_hash=asdf ";
+ for resource in $(terraform state list | grep rule.ingress);
+ do
+   plancommand="$plancommand -target $resource";
+ done;
+ eval $plancommand;
+}
